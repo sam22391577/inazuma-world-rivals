@@ -2,7 +2,9 @@
 
 《閃電十一人》自訂世界賽企劃的互動網站，整合閃電日本、世界聯合選拔與九支世界賽對手。
 
-目前網站：https://inazuma-world-rivals.sam22391577.chatgpt.site
+正式網站：https://sam22391577.github.io/inazuma-world-rivals/
+
+原 Sites 網站：https://inazuma-world-rivals.sam22391577.chatgpt.site
 
 ## 功能
 
@@ -36,10 +38,10 @@ python3 -m http.server 8000 --directory dist
 
 ## 部署與資料
 
-可將 `dist/` 作為靜態網站目錄部署。儲存庫本身不會自動部署網站。
+已啟用 GitHub Pages，透過 `.github/workflows/pages.yml` 發布 `dist/`。推送 `dist/` 的更新至 `main` 分支時會自動部署，也可在 GitHub Actions 手動執行「Deploy website to GitHub Pages」。
 
 陣容透過瀏覽器 localStorage 保存，保存在使用者的裝置中；GitHub 原始碼不包含個人瀏覽器的陣容紀錄。
 
-本次匯入為網站第 42 版的完整原始碼快照，來源提交為 `0da04f8251b189e40d8d4f7855c237bcfe4fdb63`。
+此專案由網站第 42 版的完整原始碼匯入，來源提交為 `0da04f8251b189e40d8d4f7855c237bcfe4fdb63`。
 
 角色、原作名稱與相關圖像之權利屬於原權利人；此儲存庫未授予第三方素材的再授權。

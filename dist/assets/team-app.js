@@ -166,7 +166,7 @@
     save();render();toast(missing.length?`已換上 ${missing.join('、')}，可施展「${move.name}」`:`可直接施展「${move.name}」`);
   }
 
-  const original=move=>move.origin==='原作'||move.group==='原作';
+  const original=move=>move.origin==='原作'||move.origin==='原作改編'||move.group==='原作';
   const tag=type=>`<span class="tag ${esc(type)}">${esc(type)}</span>`;
   function render(){
     const formation=forms[state.fi],field=active(),fieldSet=new Set(field),available=ready(combos),availableIds=new Set(available.map(move=>move.id||move.name));
@@ -198,7 +198,7 @@
     const shown=combos.map((move,index)=>({move,index})).filter(({move})=>state.filter==='all'||state.filter==='ready'&&availableIds.has(move.id||move.name)||state.filter==='original'&&original(move)||state.filter==='custom'&&!original(move)||move.type===state.filter);
     $('#combos').innerHTML=shown.length?shown.map(({move,index})=>{
       const missing=move.members.filter(name=>!fieldSet.has(name));
-      return `<button type="button" class="combo ${state.chosen===(move.id||move.name)?'chosen':''}" data-combo="${index}"><span><span class="move-name">${esc(move.name)}</span><span class="sub">${original(move)?'原作':'原創'} · ${move.members.length} 人 · ${esc(move.members.join('＋'))}</span>${CanonCombos.note(move)}${move.jp?`<span class="sub" lang="ja">${esc(move.jp)} · ${esc(move.work||'')}</span>`:''}<span class="combo-description">${esc(move.desc)}</span></span><span>${tag(move.type)}<span class="status">${missing.length?'缺 '+esc(missing.join('、')):'可直接施展'}</span></span></button>`;
+      return `<button type="button" class="combo ${state.chosen===(move.id||move.name)?'chosen':''}" data-combo="${index}"><span><span class="move-name">${esc(move.name)}</span><span class="sub">${move.origin==='原作改編'?'原作・指定搭配':original(move)?'原作':'原創'} · ${move.members.length} 人 · ${esc(move.members.join('＋'))}</span>${CanonCombos.note(move)}${move.jp?`<span class="sub" lang="ja">${esc(move.jp)} · ${esc(move.work||'')}</span>`:''}<span class="combo-description">${esc(move.desc)}</span></span><span>${tag(move.type)}<span class="status">${missing.length?'缺 '+esc(missing.join('、')):'可直接施展'}</span></span></button>`;
     }).join(''):'<div class="empty">沒有符合條件的合體必殺技</div>';
   }
 
