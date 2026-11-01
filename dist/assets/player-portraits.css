@@ -1,0 +1,31 @@
+/* Shared portrait presentation only. Team rosters and lineup state stay separate. */
+.player-avatar{display:flex;align-items:center;justify-content:center;width:46px;height:46px;margin:0 auto 5px;overflow:hidden;border-radius:11px;background:rgba(255,255,255,.10);flex:none;pointer-events:none}
+.player-avatar-img{display:block;width:100%;height:100%;object-fit:contain;pointer-events:none}
+.player-avatar-img[hidden]{display:none}
+.portrait-unavailable{color:inherit;font-size:24px}
+.original-player-avatar{background:linear-gradient(145deg,#f1c75d,#a25fd0 58%,#1f7259);color:#07130f;font-size:13px;font-weight:950;letter-spacing:.04em;text-shadow:0 1px 0 #fff7}
+.bench .player{display:flex;align-items:center;gap:7px;text-align:left}
+.bench .player .player-avatar{width:28px;height:28px;border-radius:7px;margin:0}
+.benchname{display:inline-flex;align-items:center;gap:6px}
+.benchname .player-avatar{width:25px;height:25px;border-radius:6px;margin:0}
+.pitch{min-height:640px}
+.pitch .player{min-width:0;width:72px;padding:7px 4px 6px;border-radius:10px}
+.pitch .player .player-avatar{width:36px;height:36px;margin-bottom:3px;border-radius:8px}
+.pitch .player .player-name,.pitch .player .pname{font-size:11px;line-height:1.3}
+.pitch .player .player-role,.pitch .player .prole{font-size:8px;margin-top:2px}
+.pitch .pitchrow,.pitch .pitch-row,.pitch .row{min-height:94px}
+.portrait-credits{margin-top:22px;border-top:1px solid var(--line);padding-top:14px;color:var(--muted);font-size:11px;line-height:1.8}
+.portrait-credits summary{cursor:pointer;font-weight:700}
+.portrait-credits p{max-width:850px;font-size:10px}
+.portrait-source-links{display:flex;flex-wrap:wrap;gap:6px 16px}
+.portrait-source-links a{color:inherit;text-underline-offset:3px}
+@media(max-width:640px){
+  .pitch{min-height:610px}
+  .pitch .pitchrow,.pitch .pitch-row,.pitch .row{min-height:89px}
+  .player-avatar{width:40px;height:40px;border-radius:9px;margin-bottom:4px}
+  .pitch .player{width:58px;padding:6px 3px 5px;border-radius:9px}
+  .pitch .player .player-avatar{width:30px;height:30px;border-radius:7px;margin-bottom:2px}
+  .pitch .player .player-name,.pitch .player .pname{font-size:10px}
+  .bench .player{padding:7px 9px}
+  .bench .player .player-avatar{width:26px;height:26px}
+}

@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#091514">
+  <meta name="description" content="兩隊相向進攻的完整球場，支援多選交換、滑鼠與觸控拖拉調整陣容。">
+  <title>兩隊對戰陣容｜戰術模擬器</title>
+  <link rel="stylesheet" href="./assets/match.css?v=9">
+  <link rel="stylesheet" href="./assets/player-portraits.css?v=2">
+  <link rel="stylesheet" href="./assets/lineup-tools.css?v=4">
+  <link rel="stylesheet" href="./assets/swap-drawer.css?v=1">
+  <link rel="stylesheet" href="./assets/technique-info.css?v=8">
+  <link rel="stylesheet" href="./assets/player-skills.css?v=8">
+  <link rel="stylesheet" href="./assets/player-directory.css?v=9">
+  <link rel="stylesheet" href="./assets/team-identity.css?v=1">
+</head>
+<body>
+  <main class="app">
+    <nav class="site-nav" aria-label="網站頁面"><a href="./index.html">隊伍總覽</a><a class="active" href="./match.html">兩隊對戰陣容</a></nav>
+    <header class="match-header"><div><div class="eyebrow">Match Lineup</div><h1>兩隊對戰陣容</h1><p>下拉選擇對戰隊伍 · 點選查看球員資料 · 拖拉球員調整站位</p></div><div class="header-actions"><button class="btn" id="aHeaderSwap" data-lineup-open="match-a">左隊多選交換</button><button class="btn" id="bHeaderSwap" data-lineup-open="match-b">右隊多選交換</button><button class="btn" id="matchUndo" disabled>復原上一步</button><button class="btn" id="flipEnds">交換場地</button></div></header>
+    <section class="match-setup" aria-label="選擇對戰隊伍與隊伍分析">
+      <article class="setup-card team-a-setup">
+        <div class="setup-heading"><div><span>左側隊伍</span><h2 id="aSetupTitle">世界代表隊</h2></div><label class="team-select" for="aTeamSelect"><span>選擇隊伍</span><select id="aTeamSelect"></select></label></div>
+        <div class="team-profile" id="aSetupProfile"></div><p class="team-intro" id="aTeamIntro"></p><div id="aTeamIdentity"></div>
+      </article>
+      <article class="setup-card team-b-setup">
+        <div class="setup-heading"><div><span>右側隊伍</span><h2 id="bSetupTitle">世界聯合選拔隊</h2></div><label class="team-select" for="bTeamSelect"><span>選擇隊伍</span><select id="bTeamSelect"></select></label></div>
+        <div class="team-profile" id="bSetupProfile"></div><p class="team-intro" id="bTeamIntro"></p><div id="bTeamIdentity"></div>
+      </article>
+    </section>
+    <div class="direction-strip"><span class="team-a" id="aAttack">世界代表隊 ↑</span><span class="versus">VS</span><span class="team-b" id="bAttack">世界聯合選拔隊 ↓</span></div>
+    <div class="match-layout">
+      <section class="field-card" aria-label="兩隊實際進攻方向與站位">
+        <div class="field-heading"><strong>比賽站位</strong><span>滑鼠直接拖拉圖卡 · 手機先開啟各隊拖拉交換</span></div>
+        <div class="match-pitch" id="matchPitch">
+          <div class="touchline"></div><div class="halfway"></div><div class="center-circle"></div>
+          <div class="penalty top"></div><div class="penalty bottom"></div><div class="goal top"></div><div class="goal bottom"></div>
+          <span class="pitch-direction top" id="topTeam"></span><span class="pitch-direction bottom" id="bottomTeam"></span>
+          <div class="team-layer" id="aLines" aria-label="世界代表隊場上11人"></div>
+          <div class="team-layer" id="bLines" aria-label="世界聯合選拔隊場上11人"></div>
+        </div>
+      </section>
+      <aside class="match-controls">
+        <section class="team-card team-a-card">
+          <div class="team-card-head"><div><h2 id="aTeamTitle">世界代表隊</h2><span id="aName"></span></div><strong id="aShape"></strong></div>
+          <div class="formation-tabs" id="aTabs" aria-label="世界代表隊陣型"></div>
+          <p class="formation-note" id="aFormationNote" hidden></p>
+          <div class="team-actions"><button class="btn primary" id="aSwap">多選交換</button><button class="btn" data-lineup-drag-toggle="match-a" aria-pressed="false">拖拉交換</button><button class="btn" id="aReset">重設陣型</button></div>
+          <p class="selection-info" id="aSelected"></p><div class="ready-count" id="aReady"></div>
+          <div class="bench-heading"><strong>替補席</strong><span id="aCount"></span></div><div class="match-bench" id="aBench"></div>
+          <div class="ready-tactics" id="aReadyTactics"></div>
+        </section>
+        <section class="team-card team-b-card">
+          <div class="team-card-head"><div><h2 id="bTeamTitle">世界聯合選拔隊</h2><span id="bName"></span></div><strong id="bShape"></strong></div>
+          <div class="formation-tabs" id="bTabs" aria-label="世界聯合選拔隊陣型"></div>
+          <p class="formation-note" id="bFormationNote" hidden></p>
+          <div class="team-actions"><button class="btn primary" id="bSwap">多選交換</button><button class="btn" data-lineup-drag-toggle="match-b" aria-pressed="false">拖拉交換</button><button class="btn" id="bReset">重設陣型</button></div>
+          <p class="selection-info" id="bSelected"></p><div class="ready-count" id="bReady"></div>
+          <div class="bench-heading"><strong>替補席</strong><span id="bCount"></span></div><div class="match-bench" id="bBench"></div>
+          <div class="ready-tactics" id="bReadyTactics"></div>
+        </section>
+        <section class="help-card"><strong>調整方式</strong><p>先從下拉選單挑選雙方隊伍；切換隊伍會載入該隊預設陣型。</p><p>點球員圖卡查看介紹、能力評價、專屬能力與必殺技；點「多選交換」可從全隊選人、預覽合體技與戰術的變化後套用。</p><p>在兩欄勾選相同人數，依編號配對後一次套用。</p><p>滑鼠可直接拖拉整張球員圖卡；手機點各隊「拖拉交換」後也能拖動整張圖卡，結束時再點「結束拖拉」。右上角把手隨時可拖拉。先發之間可換位，替補可拖到先發位置。</p><p>「交換場地」會連同左右站位旋轉180°，保留各隊相對的左、右路。對戰陣容獨立保存。</p></section>
+      </aside>
+    </div>
+    <section class="matchups"><h2>主要對位焦點</h2><div class="duels" id="duels"></div></section>
+    <section class="match-reference"><h2>必殺技與戰術說明</h2><p class="reference-note">可用狀態依目前對戰陣容即時計算；新對手從熱身賽的每人 1～2 招，逐步提升至決賽全員 4 招，合體必殺與必殺戰術也會隨賽程增加。</p><div class="reference-teams"><details class="reference-team"><summary><span id="aGuideTitle">世界代表隊</span><span id="aGuideCount"></span></summary><div class="reference-content"><details open><summary>全隊必殺戰術</summary><div id="aTacticGuide"></div></details><details><summary>全隊合體必殺技</summary><div id="aComboGuide"></div></details><details id="aCanonPanel"><summary>合體技圖鑑（原作／延伸）</summary><div id="aCanonGuide"></div></details></div></details><details class="reference-team rival"><summary><span id="bGuideTitle">世界聯合選拔隊</span><span id="bGuideCount"></span></summary><div class="reference-content"><details open><summary>全隊必殺戰術</summary><div id="bTacticGuide"></div></details><details><summary>全隊合體必殺技</summary><div id="bComboGuide"></div></details><details id="bCanonPanel"><summary>合體技圖鑑（原作／延伸）</summary><div id="bCanonGuide"></div></details></div></details></div></section>
+  </main>
+  <div class="match-toast" id="matchToast" role="status" aria-live="polite"></div>
+  <script src="./assets/player-portraits.js?v=6"></script>
+  <script src="./assets/lineup-tools.js?v=10"></script>
+  <script src="./assets/swap-drawer.js?v=2"></script>
+  <script src="./assets/technique-info.js?v=11"></script>
+  <script src="./assets/canon-skills.js?v=9"></script>
+  <script src="./assets/canon-combos.js?v=21"></script>
+  <script src="./assets/player-skills.js?v=17"></script>
+  <script src="./assets/teams-data.js?v=28"></script>
+  <script src="./assets/national-teams.js?v=12"></script>
+  <script src="./assets/latest-opponent-teams.js?v=4"></script>
+  <script src="./assets/rival-upgrade.js?v=5"></script>
+  <script src="./assets/opponent-player-profiles.js?v=1"></script>
+  <script src="./assets/player-directory.js?v=10"></script>
+  <script src="./assets/opponent-motion-descriptions.js?v=2"></script>
+  <script src="./assets/team-identity.js?v=1"></script>
+  <script src="./assets/match-app.js?v=23"></script>
+</body>
+</html>
