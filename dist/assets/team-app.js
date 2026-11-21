@@ -40,7 +40,7 @@
   }
 
   function restoreState(){
-    state={fi:0,lines:clone(forms[0].lines),selected:forms[0].lines[0][0],swap:null,highlight:[],chosen:null,st:'solo',filter:'ready',view:'formation',moveView:'combo'};
+    state={fi:0,lines:clone(forms[0].lines),selected:forms[0].lines[0][0],swap:null,highlight:[],chosen:null,tactic:null,st:'solo',filter:'ready',view:'formation',moveView:'combo'};
     let saved=readJSON(stateKey());
     if(!saved&&teamKey==='world'){
       const legacy=readJSON('inazuma-tactics-v1');
@@ -53,7 +53,7 @@
       const filter=saved.filter==='原作'?'original':saved.filter;
       state={...state,fi:Number(saved.fi),lines,selected:players[selected]?selected:lines[0][0],
         highlight:Array.isArray(saved.highlight)?saved.highlight.map(name=>LineupTools.currentName(name,roster)).filter(name=>players[name]):[],
-        chosen:saved.chosen||null,st:saved.st==='combo'?'combo':'solo',
+        chosen:saved.chosen||null,tactic:tactics.some(item=>item.name===saved.tactic)?saved.tactic:null,st:saved.st==='combo'?'combo':'solo',
         filter:['all','ready','original','custom','射門','進攻','防守'].includes(filter)?filter:'ready',
         view:['formation','players','moves'].includes(saved.view)?saved.view:'formation',
         moveView:['combo','tactic'].includes(saved.moveView)?saved.moveView:'combo'};
@@ -104,28 +104,77 @@
     toast(teamLabel()+'已載入');
   }
 
-  function clearSelection(){state.swap=null;state.highlight=[];state.chosen=null}
+  function clearSelection(){state.swap=null;state.highlight=[];state.chosen=null;state.tactic=null}
   function undo(){
     if(!undoHistory.length)return false;
     state=undoHistory.pop();state.swap=null;save();render();toast('已復原上一步');return true;
   }
 
-  function playerButton(name,slot){
+  function playerButton(name,slot,tacticOrder=0){
     const classes=['player'];
     if(state.highlight.includes(name))classes.push('involved');else if(state.selected===name)classes.push('selected');
     if(state.swap===name)classes.push('swap');
     const style=slot?` style="left:${slot[0]}%;top:${slot[1]}%"`:'';
-    return `<button type="button" class="${classes.join(' ')}" data-player="${esc(name)}" ${LineupTools.attrs('team',name)}${style} aria-label="${esc(name)} ${esc(players[name].pos)}" aria-haspopup="dialog">${LineupTools.handle()}${PlayerPortraits.html(name)}<span class="pname">${esc(name)}</span><span class="prole">${esc(players[name].pos)}</span>${state.highlight.includes(name)?'<span class="star">★</span>':''}</button>`;
+    return `<button type="button" class="${classes.join(' ')}" data-player="${esc(name)}" ${LineupTools.attrs('team',name)}${style} aria-label="${esc(name)} ${esc(players[name].pos)}" aria-haspopup="dialog">${LineupTools.handle()}${PlayerPortraits.html(name)}<span class="pname">${esc(name)}</span><span class="prole">${esc(players[name].pos)}</span>${tacticOrder?`<span class="tactic-order" aria-label="戰術核心第 ${tacticOrder} 位">${tacticOrder}</span>`:state.highlight.includes(name)?'<span class="star">★</span>':''}</button>`;
+  }
+
+  function baseSlots(formation){
+    const field=active();if(formation.slots?.length===field.length)return formation.slots.map(slot=>[Number(slot[0]),Number(slot[1])]);
+    const slots=[];state.lines.forEach((row,ri)=>row.forEach((_,ci)=>slots.push([100*(ci+1)/(row.length+1),ri===state.lines.length-1?92:8+76*ri/(state.lines.length-1)])));
+    return slots;
+  }
+
+  function tacticalLayout(item,formation){
+    const field=active(),base=baseSlots(formation),baseByName=Object.fromEntries(field.map((name,index)=>[name,base[index]]));
+    const defense=item.type==='防守'||item.type==='壓迫'||item.type==='搶球';
+    const candidates=(defense
+      ?[[50,17],[25,31],[75,31],[17,47],[50,45],[83,47],[18,64],[42,66],[58,66],[82,64],[50,90]]
+      :[[50,14],[25,28],[75,28],[38,41],[62,41],[16,55],[50,53],[84,55],[29,72],[71,72],[50,90]]).map(slot=>({slot,taken:false}));
+    const core=item.members.filter(name=>field.includes(name)),coreSet=new Set(core),assigned={};
+    const ideal=(name,isCore)=>{
+      const role=players[name]?.pos||'MF';
+      if(role==='GK')return 90;
+      if(defense)return role==='DF'?68:role==='MF'?(isCore?57:47):(isCore?43:29);
+      return role==='FW'?(isCore?23:31):role==='MF'?(isCore?43:54):(isCore?61:72);
+    };
+    const take=name=>{
+      const wantedY=ideal(name,coreSet.has(name)),wantedX=baseByName[name]?.[0]||50;
+      const options=candidates.filter(candidate=>!candidate.taken).map(candidate=>({candidate,score:Math.abs(candidate.slot[1]-wantedY)*3+Math.abs(candidate.slot[0]-wantedX)*.35+(players[name]?.pos==='GK'&&candidate.slot[1]<80?500:0)})).sort((a,b)=>a.score-b.score);
+      const choice=options[0].candidate;choice.taken=true;assigned[name]=choice.slot;
+    };
+    core.forEach(take);
+    field.filter(name=>!coreSet.has(name)).sort((a,b)=>({GK:0,DF:1,MF:2,FW:3}[players[a]?.pos]??2)-({GK:0,DF:1,MF:2,FW:3}[players[b]?.pos]??2)).forEach(take);
+    return {slots:field.map(name=>assigned[name]),byName:assigned,core};
+  }
+
+  function tacticRoute(layout){
+    const points=layout.core.map(name=>layout.byName[name]).filter(Boolean);if(!points.length)return '';
+    return `<svg class="tactic-route" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">${points.length>1?`<polyline points="${points.map(point=>point.join(',')).join(' ')}"></polyline>`:''}${points.map(point=>`<circle cx="${point[0]}" cy="${point[1]}" r="2.2"></circle>`).join('')}</svg>`;
+  }
+
+  function activateTactic(item){
+    if(!item){clearSelection();save();render();return}
+    state.tactic=item.name;state.highlight=[...item.members];state.selected=item.members.find(name=>players[name])||state.selected;state.chosen=null;state.swap=null;state.view='formation';
+    save();render();toast(`已套用「${item.name}」戰術站位`);
+    const panel=$('#formationPanel');if(panel)requestAnimationFrame(()=>panel.scrollIntoView({behavior:window.matchMedia('(prefers-reduced-motion: reduce)').matches?'auto':'smooth',block:'start'}));
+  }
+
+  function chooseTactic(name){
+    const item=tactics.find(tactic=>tactic.name===name);if(!item){activateTactic(null);return}
+    const missing=item.members.filter(player=>!active().includes(player));
+    if(missing.length&&!LineupTools.autoExchange('team',item.members)){render();return}
+    activateTactic(item);
   }
 
   function selectPlayer(name){
     if(!players[name])return;
+    const keepTactic=!!state.tactic&&!state.swap;
     if(state.swap&&state.swap!==name){
       remember();const previous=state.swap;
       state.lines=state.lines.map(row=>row.map(value=>value===previous?name:value===name?previous:value));
       toast(`已將 ${previous} 與 ${name} 交換`);
     }
-    state.selected=name;clearSelection();save();render();
+    state.selected=name;if(keepTactic)state.swap=null;else clearSelection();save();render();
   }
 
   function setFormation(index){
@@ -157,7 +206,7 @@
       }
       state.lines=next;
     }
-    state.highlight=[...move.members];state.selected=move.members[0];state.chosen=move.id||move.name;state.swap=null;
+    state.highlight=[...move.members];state.selected=move.members[0];state.chosen=move.id||move.name;state.tactic=null;state.swap=null;
     state.view='formation';save();render();toast(missing.length?`已換上 ${missing.join('、')}，可施展「${move.name}」`:`已標示「${move.name}」的施放成員`);
     const panel=$('#formationPanel');if(panel)requestAnimationFrame(()=>panel.scrollIntoView({behavior:window.matchMedia('(prefers-reduced-motion: reduce)').matches?'auto':'smooth',block:'start'}));
   }
@@ -166,18 +215,24 @@
   const tag=type=>`<span class="tag ${esc(type)}">${esc(type)}</span>`;
   function render(){
     const formation=forms[state.fi],field=active(),fieldSet=new Set(field),available=ready(combos),availableIds=new Set(available.map(move=>move.id||move.name));
+    const selectedTactic=tactics.find(item=>item.name===state.tactic)||null,tacticLayout=selectedTactic?tacticalLayout(selectedTactic,formation):null;
     document.querySelectorAll('[data-view]').forEach(button=>button.setAttribute('aria-selected',String(button.dataset.view===state.view)));
     document.querySelectorAll('[data-panel]').forEach(panel=>panel.hidden=panel.dataset.panel!==state.view);
     document.querySelectorAll('[data-move-view]').forEach(button=>button.setAttribute('aria-selected',String(button.dataset.moveView===state.moveView)));
     document.querySelectorAll('[data-move-panel]').forEach(panel=>panel.hidden=panel.dataset.movePanel!==state.moveView);
-    $('#mForm').textContent=formation.name+' '+formation.shape;
+    $('#mForm').textContent=selectedTactic?selectedTactic.name+' 戰術站位':formation.name+' '+formation.shape;
     $('#mCombo').textContent=available.length+' 招';
-    $('#formName').textContent=formation.name+'陣型';$('#shape').textContent=formation.shape;
+    $('#formName').textContent=selectedTactic?selectedTactic.name+'｜戰術站位':formation.name+'陣型';$('#shape').textContent=selectedTactic?selectedTactic.type+'戰術':formation.shape;
     $('#formationNote').textContent=formation.note||'';$('#formationNote').hidden=!formation.note;
     $('#forms').innerHTML=forms.map((item,index)=>`<button type="button" class="pill ${index===state.fi?'active':''}" data-form="${index}" aria-pressed="${index===state.fi}">${esc(item.name)}</button>`).join('');
-    const slots=formation.slots?.length===field.length?formation.slots:null;let slotIndex=0;
+    $('#formationTacticSelect').innerHTML='<option value="">選擇必殺戰術</option>'+tactics.map(item=>`<option value="${esc(item.name)}">${esc(item.name)} · ${esc(item.type)}</option>`).join('');
+    $('#formationTacticSelect').value=selectedTactic?.name||'';
+    $('#tacticBoardSummary').innerHTML=selectedTactic?`<span><strong>${esc(selectedTactic.name)}</strong>｜${esc(selectedTactic.type)}｜核心順序：${esc(selectedTactic.members.join(' → '))}</span>`:'選擇後會在球場上顯示全隊站位與核心施放順序。';
+    $('#clearTactic').hidden=!selectedTactic;
+    const slots=tacticLayout?.slots||(formation.slots?.length===field.length?formation.slots:null);let slotIndex=0;
     $('#lines').classList.toggle('custom-layout',!!slots);
-    $('#lines').innerHTML=state.lines.map(row=>`<div class="row">${row.map(name=>playerButton(name,slots?slots[slotIndex++]:null)).join('')}</div>`).join('');
+    const coreOrder=new Map((selectedTactic?.members||[]).map((name,index)=>[name,index+1]));
+    $('#lines').innerHTML=(tacticLayout?tacticRoute(tacticLayout):'')+state.lines.map(row=>`<div class="row">${row.map(name=>playerButton(name,slots?slots[slotIndex++]:null,coreOrder.get(name)||0)).join('')}</div>`).join('');
     const bench=roster.map(row=>row[0]).filter(name=>!fieldSet.has(name));
     $('#bench').innerHTML=bench.map(name=>playerButton(name)).join('');$('#benchCount').textContent=bench.length+' 人';
     $('#swapbar').classList.toggle('show',!!state.swap);$('#swaptext').textContent=state.swap?`等待選擇與「${state.swap}」交換的球員`:'';
@@ -185,7 +240,7 @@
     $('#comboCount').textContent=`可用 ${available.length}／全部 ${combos.length}`;
     $('#tacticCount').textContent=`共 ${tactics.length} 組`;
     $('#tactics').innerHTML=TechniqueInfo.tactics(tactics,state.lines);
-    TechniqueInfo.readyTactics('rivalReadyTactics',tactics,state.lines,{teamId:'team'});
+    TechniqueInfo.readyTactics('rivalReadyTactics',tactics,state.lines,{teamId:'team',selectedName:state.tactic,onSelect:activateTactic});
     $('#comboSearch').value=comboSearch;
     document.querySelectorAll('[data-filter]').forEach(button=>{
       const selected=button.dataset.filter===state.filter;button.classList.toggle('active',selected);button.setAttribute('aria-pressed',String(selected));
@@ -211,6 +266,8 @@
   });
   $('#cancelSwap').onclick=()=>{state.swap=null;render()};
   $('#clear').onclick=()=>{clearSelection();save();render()};
+  $('#clearTactic').onclick=()=>{clearSelection();save();render();toast('已回到原陣型站位')};
+  $('#formationTacticSelect').addEventListener('change',event=>chooseTactic(event.target.value));
   $('#reset').onclick=()=>{remember();state.lines=clone(forms[state.fi].lines);state.selected=state.lines[0][0];clearSelection();save();render();toast('已恢復預設先發')};
   $('#undo').onclick=undo;
   $('#teamSelect').addEventListener('change',event=>switchTeam(event.target.value));

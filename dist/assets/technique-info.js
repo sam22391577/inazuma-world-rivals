@@ -40,15 +40,16 @@
         const value=panel.select.value,item=panel.items.find(t=>t.name===value);panel.selected=item?value:'';
         const missing=item?panel.missing.get(item.name)||[]:[];
         const teamId=panel.context?.teamId||({worldReadyTactics:'world',rivalReadyTactics:'rival',aReadyTactics:'match-a',bReadyTactics:'match-b'})[panel.id];
-        if(item&&missing.length&&(!teamId||!window.LineupTools?.autoExchange(teamId,item.members))){
-          panel.selected='';
-        }
+        const applied=!!item&&(!missing.length||(teamId&&window.LineupTools?.autoExchange(teamId,item.members)));
+        panel.selected=applied?item.name:'';
         panel.select.value=panel.selected;readyDescription(panel);
+        if(typeof panel.context?.onSelect==='function')panel.context.onSelect(applied?item:null);
         if(panel.selected)scrollToFormation(panel.id);
       });
       readyPanels.set(id,panel);
     }
     const field=new Set(lines.flat());panel.items=items;panel.lines=lines;panel.context=context||null;panel.missing=new Map(items.map(t=>[t.name,t.members.filter(n=>!field.has(n))]));
+    if(Object.prototype.hasOwnProperty.call(panel.context||{},'selectedName'))panel.selected=panel.context.selectedName||'';
     if(!panel.missing.has(panel.selected)||panel.missing.get(panel.selected).length)panel.selected='';
     panel.select.innerHTML='<option value="">請選擇必殺戰術</option>'+panel.items.map(t=>{
       const missing=panel.missing.get(t.name);
