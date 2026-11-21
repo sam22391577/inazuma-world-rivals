@@ -27,8 +27,8 @@
       : document.querySelector(id==='worldReadyTactics'?'.pitch':'#lines');
     const target=id==='rivalReadyTactics'?anchor?.closest?.('.pitch')||anchor:anchor;
     if(!target?.scrollIntoView)return;
-    const reduced=window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
-    target.scrollIntoView({behavior:reduced?'auto':'smooth',block:'start'});
+    const rect=target.getBoundingClientRect(),top=Math.max(0,window.scrollY+rect.top+rect.height/2-window.innerHeight/2);
+    const root=document.documentElement,previous=root.style.scrollBehavior;root.style.scrollBehavior='auto';window.scrollTo(0,top);root.style.scrollBehavior=previous;
   }
   function readyTactics(id,items,lines,context){
     const host=document.querySelector('#'+id);if(!host)return;

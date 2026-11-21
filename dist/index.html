@@ -39,7 +39,7 @@
     <section class="workspace-panel" id="formationPanel" data-panel="formation" role="tabpanel">
       <section class="metrics"><div class="metric"><span>目前陣型</span><strong id="mForm">通用 4-3-3</strong></div><div class="metric"><span>目前可用合體技</span><strong id="mCombo">0</strong></div></section>
       <div class="workspace">
-        <section class="card"><div class="head"><div><div class="title" id="formName">通用陣型</div><div class="note">點擊球員查看資料；桌面可直接拖曳交換</div></div><div class="field-tools"><button class="btn primary" data-lineup-open="team">調整陣容</button><button class="btn" data-lineup-drag-toggle="team" aria-pressed="false">拖曳調整</button><button class="btn" id="undo" hidden>復原</button><button class="btn" id="reset">恢復預設</button><button class="btn" id="clear" hidden>清除標示</button><span class="shape" id="shape">4-3-3</span></div></div><div class="tabs" id="forms"></div><p class="formation-note" id="formationNote" hidden></p><div class="formation-tactic"><label for="formationTacticSelect"><span>必殺戰術站位</span><select id="formationTacticSelect"><option value="">選擇戰術</option></select></label><div class="tactic-board-summary" id="tacticBoardSummary">選擇後會在球場上顯示全隊站位與核心施放順序。</div><button class="btn" id="clearTactic" type="button" hidden>回到原陣型</button></div><div class="pitch-wrap"><div class="pitch"><div class="direction">↑ 進攻方向</div><div class="lines" id="lines"></div></div></div><div class="bench-wrap"><div class="section-label"><span>替補席</span><span id="benchCount"></span></div><div class="bench" id="bench"></div><div class="swapbar" id="swapbar"><span id="swaptext"></span><button class="btn" id="cancelSwap">取消</button></div></div></section>
+        <section class="card"><div class="head"><div><div class="title" id="formName">通用陣型</div><div class="note">點擊球員查看資料；桌面可直接拖曳交換</div></div><div class="field-tools"><button class="btn primary" data-lineup-open="team">調整陣容</button><button class="btn" data-lineup-drag-toggle="team" aria-pressed="false">拖曳調整</button><button class="btn" id="undo" hidden>復原</button><button class="btn" id="reset">恢復預設</button><button class="btn" id="clear" hidden>清除標示</button><span class="shape" id="shape">4-3-3</span></div></div><div class="tabs" id="forms"></div><p class="formation-note" id="formationNote" hidden></p><div class="formation-tactic"><label for="formationTacticSelect"><span>必殺戰術站位</span><select id="formationTacticSelect"><option value="">選擇戰術</option></select></label><div class="tactic-board-summary" id="tacticBoardSummary">選擇後會保留目前陣型，只標示核心施放者與順序。</div><button class="btn" id="clearTactic" type="button" hidden>清除戰術標示</button></div><div class="pitch-wrap"><div class="pitch"><div class="direction">↑ 進攻方向</div><div class="lines" id="lines"></div></div></div><div class="bench-wrap"><div class="section-label"><span>替補席</span><span id="benchCount"></span></div><div class="bench" id="bench"></div><div class="swapbar" id="swapbar"><span id="swaptext"></span><button class="btn" id="cancelSwap">取消</button></div></div></section>
       </div>
     </section>
     <section class="workspace-panel" id="playersPanel" data-panel="players" role="tabpanel" hidden><div id="playersPanelRoot"></div></section>
@@ -52,7 +52,7 @@
   <script src="./assets/player-portraits.js?v=6"></script>
   <script src="./assets/lineup-tools.js?v=10"></script>
   <script src="./assets/swap-drawer.js?v=2"></script>
-  <script src="./assets/technique-info.js?v=12"></script>
+  <script src="./assets/technique-info.js?v=13"></script>
   <script src="./assets/canon-skills.js?v=10"></script>
   <script src="./assets/canon-combos.js?v=21"></script>
   <script src="./assets/teams-data.js?v=29"></script>
@@ -64,6 +64,6 @@
   <script src="./assets/team-identity.js?v=1"></script>
   <script src="./assets/player-skills.js?v=17"></script>
   <script src="./assets/player-directory.js?v=11"></script>
-  <script src="./assets/team-app.js?v=4"></script>
+  <script src="./assets/team-app.js?v=5"></script>
 </body>
 </html>
