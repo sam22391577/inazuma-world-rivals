@@ -18,7 +18,7 @@
   const requested=new URL(window.location.href).searchParams.get('team');
   const lastTeam=read('inazuma-selected-team-v1');
   let teamKey=teamKeys.includes(requested)?requested:teamKeys.includes(lastTeam)?lastTeam:'world';
-  let roster,forms,combos,tactics,players,state,undoHistory=[],toastTimer;
+  let roster,forms,combos,tactics,players,state,undoHistory=[],toastTimer,comboSearch='';
   const stateKey=()=>teamKey==='world'?'inazuma-team-world-v1':teamKey==='rival'?'inazuma-rivals-v1':`inazuma-opponent-${teamKey}-v1`;
   const teamLabel=()=>labelFor(teamKey);
   const active=()=>state.lines.flat();
@@ -40,7 +40,7 @@
   }
 
   function restoreState(){
-    state={fi:0,lines:clone(forms[0].lines),selected:forms[0].lines[0][0],swap:null,highlight:[],chosen:null,st:'solo',filter:'all'};
+    state={fi:0,lines:clone(forms[0].lines),selected:forms[0].lines[0][0],swap:null,highlight:[],chosen:null,st:'solo',filter:'ready',view:'formation',moveView:'combo'};
     let saved=readJSON(stateKey());
     if(!saved&&teamKey==='world'){
       const legacy=readJSON('inazuma-tactics-v1');
@@ -54,7 +54,9 @@
       state={...state,fi:Number(saved.fi),lines,selected:players[selected]?selected:lines[0][0],
         highlight:Array.isArray(saved.highlight)?saved.highlight.map(name=>LineupTools.currentName(name,roster)).filter(name=>players[name]):[],
         chosen:saved.chosen||null,st:saved.st==='combo'?'combo':'solo',
-        filter:['all','ready','original','custom','射門','進攻','防守'].includes(filter)?filter:'all'};
+        filter:['all','ready','original','custom','射門','進攻','防守'].includes(filter)?filter:'ready',
+        view:['formation','players','moves'].includes(saved.view)?saved.view:'formation',
+        moveView:['combo','tactic'].includes(saved.moveView)?saved.moveView:'combo'};
     }
     if(state.chosen){
       const move=combos.find(item=>(item.id||item.name)===state.chosen||item.name===state.chosen);
@@ -85,26 +87,19 @@
     const data=definition(teamKey);
     $('#teamSelect').innerHTML=teamGroups.map(([label,keys])=>`<optgroup label="${esc(label)}">${keys.map(key=>`<option value="${esc(key)}">${esc(optionLabel(key))}</option>`).join('')}</optgroup>`).join('');
     $('#teamSelect').value=teamKey;
-    $('#pageSubtitle').textContent=`${teamKeys.length} 支隊伍 · 切換球隊，調整陣型並查看球員與招式`;
+    $('#pageSubtitle').textContent=`${teamKeys.length} 支隊伍 · 選擇隊伍後查看陣型、球員與招式`;
     $('#activeTeamName').textContent=teamLabel();
     document.title=teamLabel()+'｜隊伍戰術模擬器';
-    $('#teamProfile').innerHTML=[data.focus,data.ratio,data.identity].filter(Boolean).map(value=>`<span>${esc(value)}</span>`).join('');
+    $('#teamProfile').innerHTML=[data.focus,data.ratio].filter(Boolean).map(value=>`<span>${esc(value)}</span>`).join('');
     $('#teamIntro').textContent=data.intro||'查看此隊的完整名單、陣型、必殺技與必殺戰術。';
-    const root=$('#teamIdentity');
-    PlayerDirectory.mount(root,data,{heading:teamLabel()+'球員介紹',description:`依位置篩選 ${data.playerProfiles?.length||0} 名球員，點擊球員可查看六項能力評價、專屬能力與必殺技。`,headingId:'teamPlayerDirectoryHeading',scope:'team-directory'});
-    $('#mSquad').textContent='11 / '+roster.length;
-    const canon=document.querySelector('.canon-reference');
-    canon.hidden=teamKey!=='world'&&teamKey!=='rival';
-    canon.querySelector('summary').textContent=teamKey==='world'?'合體技圖鑑（原作／指定搭配）':'合體技圖鑑（原作／延伸）';
-    canon.querySelector('.reference-note').textContent=teamKey==='world'
-      ?'僅收錄目前核定的動畫招式；缺少原作搭檔時，依世界代表隊名單使用指定替補成員。'
-      :'外隊搭檔由本隊同位置球員搭配，配對結果會保存；招式統一顯示目前搭配的本隊成員。';
+    const root=$('#playersPanelRoot');
+    PlayerDirectory.mount(root,data,{heading:teamLabel()+'球員',description:`共 ${data.playerProfiles?.length||0} 名，依位置篩選後點擊查看能力與必殺技。`,countLabel:`${data.playerProfiles?.length||0} 人`,headingId:'teamPlayerDirectoryHeading',scope:'team-directory',open:true,embedded:true});
   }
 
   function switchTeam(key,{updateHistory=true}={}){
     if(!teamKeys.includes(key)||key===teamKey)return;
-    save();PlayerSkills.close();PlayerDirectory.unmount($('#teamIdentity'),{clear:true});
-    teamKey=key;applyDefinition();undoHistory=[];restoreState();registerTeam();renderOverview();render();
+    save();PlayerSkills.close();PlayerDirectory.unmount($('#playersPanelRoot'),{clear:true});
+    teamKey=key;comboSearch='';applyDefinition();undoHistory=[];restoreState();registerTeam();renderOverview();render();
     if(updateHistory)updateURL(true);
     toast(teamLabel()+'已載入');
   }
@@ -163,15 +158,20 @@
       state.lines=next;
     }
     state.highlight=[...move.members];state.selected=move.members[0];state.chosen=move.id||move.name;state.swap=null;
-    save();render();toast(missing.length?`已換上 ${missing.join('、')}，可施展「${move.name}」`:`可直接施展「${move.name}」`);
+    state.view='formation';save();render();toast(missing.length?`已換上 ${missing.join('、')}，可施展「${move.name}」`:`已標示「${move.name}」的施放成員`);
+    const panel=$('#formationPanel');if(panel)requestAnimationFrame(()=>panel.scrollIntoView({behavior:window.matchMedia('(prefers-reduced-motion: reduce)').matches?'auto':'smooth',block:'start'}));
   }
 
   const original=move=>move.origin==='原作'||move.origin==='原作改編'||move.group==='原作';
   const tag=type=>`<span class="tag ${esc(type)}">${esc(type)}</span>`;
   function render(){
     const formation=forms[state.fi],field=active(),fieldSet=new Set(field),available=ready(combos),availableIds=new Set(available.map(move=>move.id||move.name));
+    document.querySelectorAll('[data-view]').forEach(button=>button.setAttribute('aria-selected',String(button.dataset.view===state.view)));
+    document.querySelectorAll('[data-panel]').forEach(panel=>panel.hidden=panel.dataset.panel!==state.view);
+    document.querySelectorAll('[data-move-view]').forEach(button=>button.setAttribute('aria-selected',String(button.dataset.moveView===state.moveView)));
+    document.querySelectorAll('[data-move-panel]').forEach(panel=>panel.hidden=panel.dataset.movePanel!==state.moveView);
     $('#mForm').textContent=formation.name+' '+formation.shape;
-    $('#mCombo').textContent=available.length+' / '+combos.length;
+    $('#mCombo').textContent=available.length+' 招';
     $('#formName').textContent=formation.name+'陣型';$('#shape').textContent=formation.shape;
     $('#formationNote').textContent=formation.note||'';$('#formationNote').hidden=!formation.note;
     $('#forms').innerHTML=forms.map((item,index)=>`<button type="button" class="pill ${index===state.fi?'active':''}" data-form="${index}" aria-pressed="${index===state.fi}">${esc(item.name)}</button>`).join('');
@@ -181,24 +181,21 @@
     const bench=roster.map(row=>row[0]).filter(name=>!fieldSet.has(name));
     $('#bench').innerHTML=bench.map(name=>playerButton(name)).join('');$('#benchCount').textContent=bench.length+' 人';
     $('#swapbar').classList.toggle('show',!!state.swap);$('#swaptext').textContent=state.swap?`等待選擇與「${state.swap}」交換的球員`:'';
-    $('#undo').disabled=!undoHistory.length;$('#clear').disabled=!state.highlight.length;
-    const player=players[state.selected];
-    $('#selectedName').textContent=player.name;$('#selectedRole').textContent=player.pos;$('#selectedStatus').textContent=fieldSet.has(player.name)?'場上':'替補';
-    document.querySelectorAll('[data-st]').forEach(button=>button.classList.toggle('active',button.dataset.st===state.st));
-    const personalCombos=available.filter(move=>move.members.includes(player.name));
-    const row=(name,type,detail='')=>`<div class="line"><div><div class="move-name">${esc(name)}</div>${detail?`<div class="sub">${esc(detail)}</div>`:''}</div>${tag(type)}</div>`;
-    $('#skills').innerHTML=state.st==='solo'?player.skills.map(move=>row(move.name,move.type)).join(''):(personalCombos.length?personalCombos.map(move=>row(move.name,move.type,move.members.join('＋'))).join(''):'<div class="empty">目前沒有可用合體技</div>');
-    $('#comboCount').textContent=available.length+' / '+combos.length;
+    $('#undo').hidden=!undoHistory.length;$('#undo').disabled=!undoHistory.length;$('#clear').hidden=!state.highlight.length;$('#clear').disabled=!state.highlight.length;
+    $('#comboCount').textContent=`可用 ${available.length}／全部 ${combos.length}`;
+    $('#tacticCount').textContent=`共 ${tactics.length} 組`;
     $('#tactics').innerHTML=TechniqueInfo.tactics(tactics,state.lines);
     TechniqueInfo.readyTactics('rivalReadyTactics',tactics,state.lines,{teamId:'team'});
-    $('#canonGuide').innerHTML=teamKey==='world'||teamKey==='rival'?CanonCombos.render(roster.map(row=>row[0]),state.lines):'';
+    $('#comboSearch').value=comboSearch;
     document.querySelectorAll('[data-filter]').forEach(button=>{
       const selected=button.dataset.filter===state.filter;button.classList.toggle('active',selected);button.setAttribute('aria-pressed',String(selected));
     });
-    const shown=combos.map((move,index)=>({move,index})).filter(({move})=>state.filter==='all'||state.filter==='ready'&&availableIds.has(move.id||move.name)||state.filter==='original'&&original(move)||state.filter==='custom'&&!original(move)||move.type===state.filter);
+    const query=comboSearch.trim().toLocaleLowerCase('zh-Hant');
+    const shown=combos.map((move,index)=>({move,index})).filter(({move})=>(state.filter==='all'||state.filter==='ready'&&availableIds.has(move.id||move.name)||state.filter==='original'&&original(move)||state.filter==='custom'&&!original(move)||move.type===state.filter)&&(!query||[move.name,move.jp,move.work,...move.members].filter(Boolean).join(' ').toLocaleLowerCase('zh-Hant').includes(query)));
     $('#combos').innerHTML=shown.length?shown.map(({move,index})=>{
       const missing=move.members.filter(name=>!fieldSet.has(name));
-      return `<button type="button" class="combo ${state.chosen===(move.id||move.name)?'chosen':''}" data-combo="${index}"><span><span class="move-name">${esc(move.name)}</span><span class="sub">${move.origin==='原作改編'?'原作・指定搭配':original(move)?'原作':'原創'} · ${move.members.length} 人 · ${esc(move.members.join('＋'))}</span>${CanonCombos.note(move)}${move.jp?`<span class="sub" lang="ja">${esc(move.jp)} · ${esc(move.work||'')}</span>`:''}<span class="combo-description">${esc(move.desc)}</span></span><span>${tag(move.type)}<span class="status">${missing.length?'缺 '+esc(missing.join('、')):'可直接施展'}</span></span></button>`;
+      const origin=move.origin==='原作改編'?'替代搭配':original(move)?'動畫原作':'原創';
+      return `<article class="combo ${state.chosen===(move.id||move.name)?'chosen':''}"><div class="combo-main"><div><span class="move-name">${esc(move.name)}</span><span class="sub">${origin} · ${move.members.length} 人 · ${esc(move.members.join('＋'))}</span></div><div class="combo-status">${tag(move.type)}<span class="status">${missing.length?`需換上 ${missing.length} 人`:'目前可施展'}</span></div></div><details class="combo-details"><summary>查看招式說明</summary><p class="combo-description">${esc(move.desc)}</p>${move.jp?`<span class="sub" lang="ja">${esc(move.jp)}${move.work?' · '+esc(move.work):''}</span>`:''}${CanonCombos.note(move)}</details><button type="button" class="combo-apply" data-combo="${index}">${missing.length?`自動換上 ${missing.length} 人並套用`:'標示施放成員'}</button></article>`;
     }).join(''):'<div class="empty">沒有符合條件的合體必殺技</div>';
   }
 
@@ -207,16 +204,17 @@
     const player=event.target.closest('[data-lineup-team="team"][data-player]');if(player){selectPlayer(player.dataset.player);return}
     const formation=event.target.closest('[data-form]');if(formation){setFormation(Number(formation.dataset.form));return}
     const combo=event.target.closest('[data-combo]');if(combo){applyCombo(Number(combo.dataset.combo));return}
+    const view=event.target.closest('[data-view]');if(view){state.view=view.dataset.view;save();render();return}
+    const moveView=event.target.closest('[data-move-view]');if(moveView){state.moveView=moveView.dataset.moveView;save();render();return}
     const skillTab=event.target.closest('[data-st]');if(skillTab){state.st=skillTab.dataset.st;render();return}
     const filter=event.target.closest('[data-filter]');if(filter){state.filter=filter.dataset.filter;save();render();return}
-    const accordion=event.target.closest('.accbtn');if(accordion){const open=accordion.closest('.accordion').classList.toggle('open');accordion.setAttribute('aria-expanded',String(open))}
   });
-  $('#swap').onclick=()=>LineupTools.open('team',state.selected);
   $('#cancelSwap').onclick=()=>{state.swap=null;render()};
   $('#clear').onclick=()=>{clearSelection();save();render()};
   $('#reset').onclick=()=>{remember();state.lines=clone(forms[state.fi].lines);state.selected=state.lines[0][0];clearSelection();save();render();toast('已恢復預設先發')};
   $('#undo').onclick=undo;
   $('#teamSelect').addEventListener('change',event=>switchTeam(event.target.value));
+  $('#comboSearch').addEventListener('input',event=>{comboSearch=event.target.value;if(comboSearch.trim())state.filter='all';render()});
   window.addEventListener('popstate',()=>{const key=new URL(window.location.href).searchParams.get('team');switchTeam(teamKeys.includes(key)?key:'world',{updateHistory:false})});
   applyDefinition();restoreState();registerTeam();renderOverview();render();updateURL();
 })();

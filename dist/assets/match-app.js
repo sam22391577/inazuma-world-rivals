@@ -6,7 +6,7 @@
     .map(([label,keys])=>[label,keys.filter(key=>key!=='rival')])
     .filter(([,keys])=>keys.length);
   const teamGroups=[['現有選拔隊',['world','rival']],...opponentGroups];
-  const labels={world:'世界代表隊',rival:'世界聯合選拔隊'};
+  const labels={world:'閃電日本',rival:'世界聯合選拔隊'};
   const defaultTeams={a:'world',b:'rival'};
   const definition=side=>TEAM_DATA[state[side].teamKey];
   const teamName=side=>definition(side).label||labels[state[side].teamKey]||state[side].teamKey;
@@ -41,8 +41,8 @@
   function renderBrief(side,data){
     $('#'+side+'SetupTitle').textContent=teamName(side);
     $('#'+side+'SetupProfile').innerHTML=data.focus?'<strong>'+esc(data.focus)+'</strong><span>'+esc(data.ratio||'')+'</span><small>'+esc(data.identity||'')+'</small>':'';
-    $('#'+side+'TeamIntro').textContent=data.intro||'依目前陣型與球員特性進行即時攻守調整。';
-    $('#'+side+'TeamIdentity').innerHTML=TeamIdentity.render(data,false);
+    const intro=data.intro||'依目前陣型與球員特性進行即時攻守調整。';
+    $('#'+side+'TeamIntro').textContent=intro;
   }
   function renderTeam(side){
     const team=state[side],data=definition(side),form=data.formations[team.fi],field=new Set(team.lines.flat()),bench=roster(side).filter(n=>!field.has(n));
@@ -55,14 +55,9 @@
     $('#'+side+'Tabs').innerHTML=data.formations.map((f,i)=>'<button type="button" class="pill '+(i===team.fi?'active':'')+'" data-'+side+'="'+i+'">'+esc(f.name)+'</button>').join('');
     $('#'+side+'Bench').innerHTML=bench.map(n=>player(n,side)).join('');$('#'+side+'Count').textContent=bench.length+' 人';
     $('#'+side+'Selected').textContent=team.selected?'已選取：'+team.selected+(field.has(team.selected)?'（場上）':'（替補）'):'點選球員或開啟多選交換';
-    const combos=data.combos.filter(c=>c.members.every(n=>field.has(n))).length,tactics=data.tactics.filter(t=>t.members.every(n=>field.has(n))).length;
-    $('#'+side+'Ready').textContent='可用合體技 '+combos+' / '+data.combos.length+' · 必殺戰術 '+tactics+' / '+data.tactics.length;
-    $('#'+side+'TacticGuide').innerHTML=TechniqueInfo.tactics(data.tactics,team.lines);
+    const combos=data.combos.filter(c=>c.members.every(n=>field.has(n))).length;
+    $('#'+side+'Ready').textContent='目前可用合體技 '+combos+' / '+data.combos.length;
     TechniqueInfo.readyTactics(side+'ReadyTactics',data.tactics,team.lines);
-    $('#'+side+'ComboGuide').innerHTML=TechniqueInfo.combos(data.combos,team.lines);
-    const canon=['world','rival'].includes(team.teamKey);$('#'+side+'CanonPanel').hidden=!canon;
-    $('#'+side+'CanonGuide').innerHTML=canon?CanonCombos.render(roster(side),team.lines):'';
-    $('#'+side+'GuideTitle').textContent=teamName(side);$('#'+side+'GuideCount').textContent=data.combos.length+' 招合體技 · '+data.tactics.length+' 組必殺戰術';
   }
   function byRole(side,roles){
     const roleMap=Object.fromEntries(definition(side).roster.map(([name,pos])=>[name,pos]));
@@ -82,8 +77,7 @@
     ensureAdapter('a');ensureAdapter('b');renderTeam('a');renderTeam('b');renderDuels();
     $('#aAttack').textContent=shortName('a')+(state.flipped?' ↓':' ↑');$('#bAttack').textContent=shortName('b')+(state.flipped?' ↑':' ↓');
     $('#topTeam').textContent=state.flipped?shortName('a')+' ↓':shortName('b')+' ↓';$('#bottomTeam').textContent=state.flipped?shortName('b')+' ↑':shortName('a')+' ↑';
-    $('#aHeaderSwap').textContent=shortName('a')+'多選交換';$('#bHeaderSwap').textContent=shortName('b')+'多選交換';
-    $('#matchUndo').disabled=!history.length;save();
+    $('#matchUndo').hidden=!history.length;$('#matchUndo').disabled=!history.length;save();
   }
   function setFormation(side,index){if(!definition(side).formations[index])return;push();state[side]=initial(state[side].teamKey,index);render();toast(teamName(side)+'已切換陣型')}
   function setTeam(side,key){
