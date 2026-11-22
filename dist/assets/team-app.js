@@ -63,6 +63,11 @@
       state.chosen=move?(move.id||move.name):null;
       if(!move)state.highlight=[];
     }
+    if(state.tactic){
+      state.highlight=[];
+      state.chosen=null;
+      state.selected=null;
+    }
     save();
   }
 
@@ -146,20 +151,13 @@
     return slots;
   }
 
-  function tacticOverlay(item,formation){
-    const field=active(),slots=baseSlots(formation);
-    return {byName:Object.fromEntries(field.map((name,index)=>[name,slots[index]])),core:item.members.filter(name=>field.includes(name))};
-  }
-
-  function tacticRoute(layout){
-    const points=layout.core.map(name=>layout.byName[name]).filter(Boolean);if(!points.length)return '';
-    return `<svg class="tactic-route" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">${points.length>1?`<polyline points="${points.map(point=>point.join(',')).join(' ')}"></polyline>`:''}${points.map(point=>`<circle cx="${point[0]}" cy="${point[1]}" r="2.2"></circle>`).join('')}</svg>`;
-  }
-
   function activateTactic(item){
-    if(!item){clearSelection();save();render();return}
-    state.tactic=item.name;state.highlight=[...item.members];state.selected=item.members.find(name=>players[name])||state.selected;state.chosen=null;state.swap=null;state.view='formation';
-    save();render();toast(`已在目前陣型標示「${item.name}」`);
+    if(!item){
+      state.tactic=null;state.highlight=[];state.chosen=null;state.swap=null;
+      save();render();return;
+    }
+    state.tactic=item.name;state.highlight=[];state.selected=null;state.chosen=null;state.swap=null;state.view='formation';
+    save();render();toast(`已選擇「${item.name}」，目前陣型保持不變`);
     const pitch=$('#lines')?.closest('.pitch');if(pitch)requestAnimationFrame(()=>{
       const rect=pitch.getBoundingClientRect(),top=Math.max(0,window.scrollY+rect.top+rect.height/2-window.innerHeight/2);
       const root=document.documentElement,previous=root.style.scrollBehavior;root.style.scrollBehavior='auto';window.scrollTo(0,top);root.style.scrollBehavior=previous;
@@ -218,7 +216,7 @@
   const tag=type=>`<span class="tag ${esc(type)}">${esc(type)}</span>`;
   function render(){
     const formation=forms[state.fi],field=active(),fieldSet=new Set(field),available=ready(combos),availableIds=new Set(available.map(move=>move.id||move.name));
-    const selectedTactic=tactics.find(item=>item.name===state.tactic)||null,tacticOverlayData=selectedTactic?tacticOverlay(selectedTactic,formation):null;
+    const selectedTactic=tactics.find(item=>item.name===state.tactic)||null;
     document.querySelectorAll('[data-view]').forEach(button=>button.setAttribute('aria-selected',String(button.dataset.view===state.view)));
     document.querySelectorAll('[data-panel]').forEach(panel=>panel.hidden=panel.dataset.panel!==state.view);
     document.querySelectorAll('[data-move-view]').forEach(button=>button.setAttribute('aria-selected',String(button.dataset.moveView===state.moveView)));
@@ -230,13 +228,12 @@
     $('#forms').innerHTML=forms.map((item,index)=>`<button type="button" class="pill ${index===state.fi?'active':''}" data-form="${index}" aria-pressed="${index===state.fi}">${esc(item.name)}</button>`).join('');
     $('#formationTacticSelect').innerHTML='<option value="">選擇必殺戰術</option>'+tactics.map(item=>`<option value="${esc(item.name)}">${esc(item.name)} · ${esc(item.type)}</option>`).join('');
     $('#formationTacticSelect').value=selectedTactic?.name||'';
-    $('#tacticBoardSummary').innerHTML=selectedTactic?`<span><strong>${esc(selectedTactic.name)}</strong>｜${esc(selectedTactic.type)}｜原陣型核心順序：${esc(selectedTactic.members.join(' → '))}</span>`:'選擇後會保留目前陣型，只標示核心施放者與順序。';
+    $('#tacticBoardSummary').innerHTML=selectedTactic?`<span><strong>${esc(selectedTactic.name)}｜${esc(selectedTactic.type)}</strong><br>${esc(selectedTactic.desc||'尚無戰術說明')}</span>`:'選擇後會保留目前陣型；只有必要球員不在場時，才會自動換入。';
     $('#clearTactic').hidden=!selectedTactic;
     const slots=formation.slots?.length===field.length?formation.slots:null;let slotIndex=0;
     $('#lines').classList.toggle('custom-layout',!!slots);
-    const coreOrder=new Map((selectedTactic?.members||[]).map((name,index)=>[name,index+1]));
     $('#lines').classList.toggle('quick-exchange',!!state.swap);
-    $('#lines').innerHTML=(tacticOverlayData?tacticRoute(tacticOverlayData):'')+state.lines.map(row=>`<div class="row">${row.map(name=>playerButton(name,slots?slots[slotIndex++]:null,coreOrder.get(name)||0,true)).join('')}</div>`).join('');
+    $('#lines').innerHTML=state.lines.map(row=>`<div class="row">${row.map(name=>playerButton(name,slots?slots[slotIndex++]:null,0,true)).join('')}</div>`).join('');
     const rosterOrder=new Map(roster.map((row,index)=>[row[0],index]));
     const bench=roster.map(row=>row[0]).filter(name=>!fieldSet.has(name)).sort((a,b)=>state.swap?Number(players[b].pos===players[state.swap]?.pos)-Number(players[a].pos===players[state.swap]?.pos)||rosterOrder.get(a)-rosterOrder.get(b):rosterOrder.get(a)-rosterOrder.get(b));
     $('#bench').innerHTML=bench.map(name=>playerButton(name)).join('');$('#benchCount').textContent=bench.length+' 人';
@@ -277,7 +274,7 @@
   });
   $('#cancelSwap').onclick=()=>{state.swap=null;render()};
   $('#clear').onclick=()=>{clearSelection();save();render()};
-  $('#clearTactic').onclick=()=>{clearSelection();save();render();toast('已清除戰術標示')};
+  $('#clearTactic').onclick=()=>{state.tactic=null;state.highlight=[];state.chosen=null;save();render();toast('已清除戰術選擇')};
   $('#formationTacticSelect').addEventListener('change',event=>chooseTactic(event.target.value));
   $('#reset').onclick=()=>{remember();state.lines=clone(forms[state.fi].lines);state.selected=state.lines[0][0];clearSelection();save();render();toast('已恢復預設先發')};
   $('#undo').onclick=undo;
