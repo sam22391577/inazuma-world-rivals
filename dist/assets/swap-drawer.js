@@ -74,7 +74,11 @@
   document.addEventListener('click',event=>{
     const undo=event.target.closest('[data-swap-undo]');
     if(undo&&undoTicket){const ticket=undoTicket,team=teams.get(ticket.id);clearNotice();if(team&&JSON.stringify(team.getLines())===ticket.signature)team.undo?.();return}
-    const trigger=event.target.closest('[data-player-exchange]');if(trigger){open(trigger.dataset.lineupTeam,trigger.dataset.playerExchange);return}
+    const trigger=event.target.closest('[data-player-exchange]');if(trigger){
+      const team=teams.get(trigger.dataset.lineupTeam);
+      if(typeof team?.quickExchange==='function'&&team.quickExchange(trigger.dataset.playerExchange)!==false)return;
+      open(trigger.dataset.lineupTeam,trigger.dataset.playerExchange);return
+    }
     if(event.target.closest('[data-swap-apply]')||event.target.closest('.swap-drawer'))return;
     if(undoTicket)clearNotice();
   });

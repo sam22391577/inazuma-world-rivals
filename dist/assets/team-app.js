@@ -73,7 +73,7 @@
 
   function registerTeam(){
     PlayerSkills.register('team',{title:teamLabel(),teamData:()=>definition(teamKey),players,combos,tactics,expandedDescriptions:true,
-      getLines:()=>state.lines,undo(){return undo()}});
+      getLines:()=>state.lines,quickExchange:startQuickSwap,undo(){return undo()}});
     LineupTools.register('team',{title:teamLabel(),roster:roster.map(row=>row[0]),getLines:()=>state.lines,notify:toast,
       commit(next,pairs){remember();state.lines=next;state.selected=pairs[0][1];clearSelection();save();render();toast('已完成 '+pairs.length+' 組交換，可復原上一步')}});
   }
@@ -110,12 +110,34 @@
     state=undoHistory.pop();state.swap=null;save();render();toast('已復原上一步');return true;
   }
 
-  function playerButton(name,slot,tacticOrder=0){
+  function playerButton(name,slot,tacticOrder=0,fieldCard=false){
     const classes=['player'];
     if(state.highlight.includes(name))classes.push('involved');else if(state.selected===name)classes.push('selected');
     if(state.swap===name)classes.push('swap');
+    if(state.swap&&state.swap!==name){classes.push('exchange-candidate');if(players[state.swap]?.pos===players[name]?.pos)classes.push('exchange-recommended')}
+    const label=state.swap&&state.swap!==name?`以 ${name} 交換 ${state.swap}`:`${name} ${players[name].pos}`;
+    const button=`<button type="button" class="${classes.join(' ')}" data-player="${esc(name)}" ${LineupTools.attrs('team',name)} aria-label="${esc(label)}" aria-haspopup="dialog">${LineupTools.handle()}${PlayerPortraits.html(name)}<span class="pname">${esc(name)}</span><span class="prole">${esc(players[name].pos)}</span>${tacticOrder?`<span class="tactic-order" aria-label="戰術核心第 ${tacticOrder} 位">${tacticOrder}</span>`:state.highlight.includes(name)?'<span class="star">★</span>':''}</button>`;
+    if(!fieldCard)return button;
     const style=slot?` style="left:${slot[0]}%;top:${slot[1]}%"`:'';
-    return `<button type="button" class="${classes.join(' ')}" data-player="${esc(name)}" ${LineupTools.attrs('team',name)}${style} aria-label="${esc(name)} ${esc(players[name].pos)}" aria-haspopup="dialog">${LineupTools.handle()}${PlayerPortraits.html(name)}<span class="pname">${esc(name)}</span><span class="prole">${esc(players[name].pos)}</span>${tacticOrder?`<span class="tactic-order" aria-label="戰術核心第 ${tacticOrder} 位">${tacticOrder}</span>`:state.highlight.includes(name)?'<span class="star">★</span>':''}</button>`;
+    const quickLabel=state.swap===name?`取消交換 ${name}`:`快速交換 ${name}`;
+    return `<div class="player-slot${state.swap===name?' quick-source':''}"${style}>${button}<button type="button" class="quick-swap-trigger" data-quick-swap="${esc(name)}" aria-label="${esc(quickLabel)}" title="${esc(quickLabel)}">↔</button></div>`;
+  }
+
+  function startQuickSwap(name){
+    if(!players[name]||!active().includes(name))return false;
+    PlayerSkills.close();
+    if(state.swap===name){state.swap=null;save();render();toast('已取消快速交換');return true}
+    state.swap=name;state.selected=name;state.highlight=[];state.chosen=null;state.tactic=null;
+    save();render();toast(`已選擇 ${name}，請點選交換對象`);
+    requestAnimationFrame(()=>$('#bench .exchange-recommended,#bench .exchange-candidate')?.focus());
+    return true;
+  }
+
+  function finishQuickSwap(name){
+    const previous=state.swap;if(!previous||!players[name])return false;
+    if(previous===name){state.swap=null;save();render();toast('已取消快速交換');return true}
+    remember();state.lines=state.lines.map(row=>row.map(value=>value===previous?name:value===name?previous:value));
+    state.selected=name;clearSelection();save();render();toast(`已將 ${previous} 與 ${name} 交換，可復原上一步`);return true;
   }
 
   function baseSlots(formation){
@@ -153,12 +175,8 @@
 
   function selectPlayer(name){
     if(!players[name])return;
+    if(state.swap){finishQuickSwap(name);return}
     const keepTactic=!!state.tactic&&!state.swap;
-    if(state.swap&&state.swap!==name){
-      remember();const previous=state.swap;
-      state.lines=state.lines.map(row=>row.map(value=>value===previous?name:value===name?previous:value));
-      toast(`已將 ${previous} 與 ${name} 交換`);
-    }
     state.selected=name;if(keepTactic)state.swap=null;else clearSelection();save();render();
   }
 
@@ -217,10 +235,13 @@
     const slots=formation.slots?.length===field.length?formation.slots:null;let slotIndex=0;
     $('#lines').classList.toggle('custom-layout',!!slots);
     const coreOrder=new Map((selectedTactic?.members||[]).map((name,index)=>[name,index+1]));
-    $('#lines').innerHTML=(tacticOverlayData?tacticRoute(tacticOverlayData):'')+state.lines.map(row=>`<div class="row">${row.map(name=>playerButton(name,slots?slots[slotIndex++]:null,coreOrder.get(name)||0)).join('')}</div>`).join('');
-    const bench=roster.map(row=>row[0]).filter(name=>!fieldSet.has(name));
+    $('#lines').classList.toggle('quick-exchange',!!state.swap);
+    $('#lines').innerHTML=(tacticOverlayData?tacticRoute(tacticOverlayData):'')+state.lines.map(row=>`<div class="row">${row.map(name=>playerButton(name,slots?slots[slotIndex++]:null,coreOrder.get(name)||0,true)).join('')}</div>`).join('');
+    const rosterOrder=new Map(roster.map((row,index)=>[row[0],index]));
+    const bench=roster.map(row=>row[0]).filter(name=>!fieldSet.has(name)).sort((a,b)=>state.swap?Number(players[b].pos===players[state.swap]?.pos)-Number(players[a].pos===players[state.swap]?.pos)||rosterOrder.get(a)-rosterOrder.get(b):rosterOrder.get(a)-rosterOrder.get(b));
     $('#bench').innerHTML=bench.map(name=>playerButton(name)).join('');$('#benchCount').textContent=bench.length+' 人';
-    $('#swapbar').classList.toggle('show',!!state.swap);$('#swaptext').textContent=state.swap?`等待選擇與「${state.swap}」交換的球員`:'';
+    $('#bench').classList.toggle('quick-exchange',!!state.swap);
+    $('#swapbar').classList.toggle('show',!!state.swap);$('#swaptext').innerHTML=state.swap?`<strong>已選擇 ${esc(state.swap)}</strong><span>同位置球員已排在前面；點選場上或替補球員立即交換。</span>`:'';
     $('#undo').hidden=!undoHistory.length;$('#undo').disabled=!undoHistory.length;$('#clear').hidden=!state.highlight.length;$('#clear').disabled=!state.highlight.length;
     $('#comboCount').textContent=`可用 ${available.length}／全部 ${combos.length}`;
     $('#tacticCount').textContent=`共 ${tactics.length} 組`;
@@ -239,6 +260,11 @@
     }).join(''):'<div class="empty">沒有符合條件的合體必殺技</div>';
   }
 
+  document.addEventListener('click',event=>{
+    const quick=event.target.closest('[data-quick-swap]');
+    if(quick){event.preventDefault();event.stopImmediatePropagation();startQuickSwap(quick.dataset.quickSwap);return}
+    if(state.swap){const candidate=event.target.closest('[data-lineup-team="team"][data-player]');if(candidate){event.preventDefault();event.stopImmediatePropagation();finishQuickSwap(candidate.dataset.player);return}}
+  },true);
   document.addEventListener('click',event=>{
     if(event.composedPath().some(node=>node.matches?.('[data-player-directory-overlay]')))return;
     const player=event.target.closest('[data-lineup-team="team"][data-player]');if(player){selectPlayer(player.dataset.player);return}
