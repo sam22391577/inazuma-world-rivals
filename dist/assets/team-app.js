@@ -229,7 +229,6 @@
     $('#formationTacticSelect').innerHTML='<option value="">選擇必殺戰術</option>'+tactics.map(item=>`<option value="${esc(item.name)}">${esc(item.name)} · ${esc(item.type)}</option>`).join('');
     $('#formationTacticSelect').value=selectedTactic?.name||'';
     $('#tacticBoardSummary').innerHTML=selectedTactic?`<span><strong>${esc(selectedTactic.name)}｜${esc(selectedTactic.type)}</strong><br>${esc(selectedTactic.desc||'尚無戰術說明')}</span>`:'選擇後會保留目前陣型；只有必要球員不在場時，才會自動換入。';
-    $('#clearTactic').hidden=!selectedTactic;
     const slots=formation.slots?.length===field.length?formation.slots:null;let slotIndex=0;
     $('#lines').classList.toggle('custom-layout',!!slots);
     $('#lines').classList.toggle('quick-exchange',!!state.swap);
@@ -274,7 +273,6 @@
   });
   $('#cancelSwap').onclick=()=>{state.swap=null;render()};
   $('#clear').onclick=()=>{clearSelection();save();render()};
-  $('#clearTactic').onclick=()=>{state.tactic=null;state.highlight=[];state.chosen=null;save();render();toast('已清除戰術選擇')};
   $('#formationTacticSelect').addEventListener('change',event=>chooseTactic(event.target.value));
   $('#reset').onclick=()=>{remember();state.lines=clone(forms[state.fi].lines);state.selected=state.lines[0][0];clearSelection();save();render();toast('已恢復預設先發')};
   $('#undo').onclick=undo;
